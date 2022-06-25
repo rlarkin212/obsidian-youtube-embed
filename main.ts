@@ -1,7 +1,8 @@
 import { App, Editor, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 interface PluginSettings {
-	mode: embedMode
+	embedMode: embedMode
+	frameBorder: boolean
 }
 
 enum embedMode {
@@ -10,7 +11,8 @@ enum embedMode {
 }
 
 const DEFAULT_SETTINGS: PluginSettings = {
-	mode: embedMode.clipboard
+	embedMode: embedMode.clipboard,
+	frameBorder: false
 }
 
 export default class YoutubeEmbed extends Plugin {
@@ -44,7 +46,7 @@ export default class YoutubeEmbed extends Plugin {
 	}
 
 	async embed(editor: Editor) {
-		if (this.settings.mode == embedMode.clipboard) {
+		if (this.settings.embedMode == embedMode.clipboard) {
 			const input = await navigator.clipboard.readText();
 			const iFrame = await this.formatIFrame(input)
 
@@ -55,14 +57,14 @@ export default class YoutubeEmbed extends Plugin {
 			}
 		}
 
-		if (this.settings.mode == embedMode.highlighted) {
+		if (this.settings.embedMode == embedMode.highlighted) {
 			const input = editor.getSelection()
 			const iFrame = await this.formatIFrame(input)
 
 			if (iFrame != "") {
 				editor.replaceSelection(iFrame, editor.getSelection())
 			} else {
-				new Notice("Link was not a valid youtube watch link")
+				new Notice("Link Was Not A Valid Youtube Link")
 			}
 		}
 	}
@@ -70,10 +72,15 @@ export default class YoutubeEmbed extends Plugin {
 	async formatIFrame(input: string): Promise<string> {
 		let iFrame = "";
 
-		if (input.contains("https://www.youtube.com/")) {
-			const url = input.split('?v=')[1]
+		const regExp = new RegExp(/^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$/img)
+		const matches = regExp.exec(input)
 
-			iFrame = `<iframe src="https://www.youtube.com/embed/${url}?feature=oembed" height="113" width="200" style="aspect-ratio: 1.76991 / 1; width: 100%; height: 100%;"></iframe>`
+		if (matches != null) {
+			const id = matches[6]
+
+			if (id) {
+				iFrame = `<iframe src="https://www.youtube.com/embed/${id}" height="113" width="200" style="aspect-ratio: 1.76991 / 1; width: 100%; height: 100%;" frameborder=${Number(this.settings.frameBorder)}></iframe>`
+			}
 		}
 
 		return iFrame;
@@ -92,16 +99,25 @@ class SettingsTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-
 		containerEl.createEl('h2', { text: 'Youtube Embed Settings' });
+
 		new Setting(containerEl)
 			.setName('Embed Mode')
 			.addDropdown(dropdown => dropdown
 				.addOption(embedMode.clipboard, embedMode.clipboard)
 				.addOption(embedMode.highlighted, embedMode.highlighted)
-				.setValue(this.plugin.settings.mode)
+				.setValue(this.plugin.settings.embedMode)
 				.onChange(async (value: string) => {
-					this.plugin.settings.mode = value as embedMode
+					this.plugin.settings.embedMode = value as embedMode
+					await this.plugin.saveSettings()
+				}));
+
+		new Setting(containerEl)
+			.setName("Frame Border")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.frameBorder)
+				.onChange(async (value: boolean) => {
+					this.plugin.settings.frameBorder = value
 					await this.plugin.saveSettings()
 				}));
 	}
