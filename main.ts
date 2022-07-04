@@ -46,44 +46,42 @@ export default class YoutubeEmbed extends Plugin {
 	}
 
 	async embed(editor: Editor) {
-		if (this.settings.embedMode == embedMode.clipboard) {
-			const input = await navigator.clipboard.readText();
-			const iFrame = await this.formatIFrame(input)
+		let input: string = ""
 
-			if (iFrame != "") {
-				editor.replaceRange(iFrame, editor.getCursor());
-			} else {
-				new Notice("Link was not a valid youtube watch link")
-			}
-		}
+		switch (this.settings.embedMode) {
+			case embedMode.clipboard:
+				input = await navigator.clipboard.readText();
+				this.genrateIFrame(input)
+					.then(x => editor.replaceRange(x, editor.getCursor()))
+					.catch(err => new Notice(err))
 
-		if (this.settings.embedMode == embedMode.highlighted) {
-			const input = editor.getSelection()
-			const iFrame = await this.formatIFrame(input)
+				break;
 
-			if (iFrame != "") {
-				editor.replaceSelection(iFrame, editor.getSelection())
-			} else {
-				new Notice("Link Was Not A Valid Youtube Link")
-			}
+			case embedMode.highlighted:
+				input = editor.getSelection()
+				this.genrateIFrame(input)
+					.then(x => editor.replaceSelection(x, editor.getSelection()))
+					.catch(err => new Notice(err))
+
+				break;
 		}
 	}
 
-	async formatIFrame(input: string): Promise<string> {
-		let iFrame = "";
-
-		const regExp = new RegExp(/^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$/img)
-		const matches = regExp.exec(input)
+	async genrateIFrame(input: string): Promise<string> {
+		const regExp: RegExp = new RegExp(/^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$/img)
+		const matches: RegExpExecArray = regExp.exec(input)
 
 		if (matches != null) {
-			const id = matches[6]
+			const id: string = matches[6]
 
 			if (id) {
-				iFrame = `<iframe src="https://www.youtube.com/embed/${id}" height="113" width="200" style="aspect-ratio: 1.76991 / 1; width: 100%; height: 100%;" frameborder=${Number(this.settings.frameBorder)}></iframe>`
+				const iFrame: string = `<iframe src="https://www.youtube.com/embed/${id}" height="113" width="200" style="aspect-ratio: 1.76991 / 1; width: 100%; height: 100%;" frameborder=${Number(this.settings.frameBorder)}></iframe>`
+
+				return Promise.resolve(iFrame)
 			}
 		}
 
-		return iFrame;
+		return Promise.reject("Not Valid Youtube Link")
 	}
 }
 
@@ -97,7 +95,7 @@ class SettingsTab extends PluginSettingTab {
 
 
 	display(): void {
-		const { containerEl } = this;
+		const containerEl: HTMLElement = this.containerEl;
 		containerEl.empty();
 		containerEl.createEl('h2', { text: 'Youtube Embed Settings' });
 
